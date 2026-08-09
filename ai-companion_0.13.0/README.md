@@ -1,5 +1,7 @@
 # AI Companion - Factorio Mod
 
+Topics: [factorio](https://github.com/topics/factorio) · [factorio-mod](https://github.com/topics/factorio-mod) · [lua](https://github.com/topics/lua) · [rcon](https://github.com/topics/rcon) · [ai-agent](https://github.com/topics/ai-agent) · [game-automation](https://github.com/topics/game-automation)
+
 ## Installation
 
 ### Windows
