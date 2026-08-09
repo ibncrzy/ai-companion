@@ -65,3 +65,15 @@ cp -r factorio-mod ~/Library/Application\ Support/factorio/mods/ai-companion
 
 - Factorio must be started with "Start as server" option
 - RCON must be enabled (port 25575, password: factorio)
+
+## RCON Connection Requirements
+
+The mod's `fac_*` commands only work over RCON (or typed directly in-game) — they can't be reached by anything that just runs arbitrary Lua against the game (see below). An external orchestrator/AI needs a working RCON connection to control companions at all.
+
+- **RCON is a Factorio launch-time flag, not something this mod sets.** Start the server with `--start-server <save> --rcon-port <port> --rcon-password <password>` (or the equivalent `server-settings.json` fields). The port/password above are just this mod's documented defaults — always confirm against your actual launch config.
+- **The port can change** any time the server is restarted with different flags. If RCON connections start failing, re-verify rather than assuming the documented port still applies:
+  - Find the server process: `Get-Process factorio | Select-Object Id,StartTime` (Windows)
+  - Find its actual listening port: `Get-NetTCPConnection -State Listen -OwningProcess <pid> | Select-Object LocalPort`
+  - Confirm it accepts connections: `Test-NetConnection -ComputerName 127.0.0.1 -Port <port> | Select-Object TcpTestSucceeded`
+- **A tool that only runs raw Lua via RCON (`/sc`/`/c`-style execution) cannot invoke `fac_*` console commands**, and that execution context has its own separate `storage` — it can't read this mod's state directly either. The one thing that works from raw Lua is `remote.call("ai_companion_bridge", "function_name", ...)`, since `remote.call` runs inside the mod's own environment. Use the bridge, not `fac_*`, when driving the mod from that kind of tool.
+- **Mod code changes don't take effect until the mod reloads** (reload the save or restart Factorio) — editing `control.lua` live has no effect on a running game until then.
