@@ -4,12 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-Two things live in this directory:
+`ai-companion_0.13.0/` (nested folder of the same name) is a Factorio 2.x mod written in Lua. It spawns controllable "companion" characters and exposes ~51 RCON commands so an external AI/orchestrator (e.g. via a companion MCP server) can command them — move, mine, craft, build, fight, chat.
 
-1. **The actual project**: `ai-companion_0.13.0/` (nested folder of the same name) is a Factorio 2.x mod written in Lua. It spawns controllable "companion" characters and exposes ~51 RCON commands so an external AI/orchestrator (e.g. via a companion MCP server) can command them — move, mine, craft, build, fight, chat.
-2. **An unrelated scaffold**: the repo root has a `bun init`-generated TypeScript stub (`index.ts`, `package.json`, `tsconfig.json`). It is not part of the mod and has no meaningful logic (`index.ts` is just `console.log("Hello via Bun!")`). Don't assume TS build/test tooling applies to the mod — it doesn't.
-
-All real development happens in `ai-companion_0.13.0/`.
+All real development happens in `ai-companion_0.13.0/`. (An earlier `bun init`-generated TypeScript stub used to sit at the repo root; it had no real logic and was removed.)
 
 ## Commands
 
