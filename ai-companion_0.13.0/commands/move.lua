@@ -8,8 +8,10 @@ commands.add_command("fac_move_to", nil, function(cmd)
     if not id then u.error_response("Companion not found"); return end
     local x, y = tonumber(args[2]), tonumber(args[3])
     if not x or not y then u.error_response("Invalid coordinates"); return end
-    storage.walking_queues[id] = {target = {x = x, y = y}}
-    u.json_response({id = id, walking_to = {x = x, y = y}})
+    local off = u.spread_offset(id)
+    local target = {x = x + off.x, y = y + off.y}
+    storage.walking_queues[id] = {target = target}
+    u.json_response({id = id, walking_to = target})
   end)
 end)
 

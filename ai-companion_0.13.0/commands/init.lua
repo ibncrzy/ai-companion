@@ -76,6 +76,13 @@ function M.distance(a, b)
   return math.sqrt((a.x - b.x)^2 + (a.y - b.y)^2)
 end
 
+-- Small per-companion offset so a group sent to the same nominal coordinates
+-- (move_to/harvest) spreads out instead of stacking on the same tile.
+function M.spread_offset(id)
+  local angle = (id % 8) * (2 * math.pi / 8)
+  return {x = math.cos(angle) * 0.3, y = math.sin(angle) * 0.3}
+end
+
 function M.get_direction(from, to)
   local dx, dy = to.x - from.x, to.y - from.y
   if math.abs(dx) < 0.5 and math.abs(dy) < 0.5 then return nil end

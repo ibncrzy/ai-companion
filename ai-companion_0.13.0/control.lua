@@ -380,8 +380,10 @@ remote.add_interface("ai_companion_bridge", {
     if not cid then return {error = "Companion not found"} end
     local tx, ty = tonumber(x), tonumber(y)
     if not tx or not ty then return {error = "Invalid coordinates"} end
-    storage.walking_queues[cid] = {target = {x = tx, y = ty}}
-    return {id = cid, walking_to = {x = tx, y = ty}}
+    local off = u.spread_offset(cid)
+    local target = {x = tx + off.x, y = ty + off.y}
+    storage.walking_queues[cid] = {target = target}
+    return {id = cid, walking_to = target}
   end,
 
   companion_status = function(id)
@@ -405,7 +407,8 @@ remote.add_interface("ai_companion_bridge", {
     if not cid then return {error = "Companion not found"} end
     local tx, ty = tonumber(x), tonumber(y)
     if not tx or not ty then return {error = "Invalid coordinates"} end
-    local result = queues.start_harvest(cid, {x = tx, y = ty}, tonumber(count) or 20, (resource_name and resource_name ~= "") and resource_name or nil)
+    local off = u.spread_offset(cid)
+    local result = queues.start_harvest(cid, {x = tx + off.x, y = ty + off.y}, tonumber(count) or 20, (resource_name and resource_name ~= "") and resource_name or nil)
     result.id = cid
     return result
   end,
