@@ -59,6 +59,12 @@ echo --- context -----------------------------------------------------
 echo fac_context_clear [all^|id]                  default "all"; clears message queue
 echo fac_context_check                            list ^& clear pending context-clear requests
 echo.
+echo --- goal -----------------------------------------------------
+echo fac_goal_create ^<id^> [watch_type] [description]   watch_type: harvest^|craft^|build to auto-resolve, or blank for manual
+echo fac_goal_update ^<id^> ^<status^> [note]              status: pending^|in_progress^|done^|failed
+echo fac_goal_list [id^|status]                          blank = all goals
+echo fac_goal_get ^<id^>
+echo.
 echo --- item -----------------------------------------------------
 echo fac_item_craft ^<id^> ^<item^> [count=1]         instant craft
 echo fac_item_craft_start ^<id^> ^<recipe^> [count=1] tick-based ^(realistic^) craft

@@ -1,5 +1,6 @@
 -- AI Companion v0.9.0 - Tick-based queue system
 local u = require("commands.init")
+local goals = require("commands.goals")
 
 local M = {}
 
@@ -103,55 +104,49 @@ end
 
 function M.tick_harvest_queues()
   process_queue("harvest_queues", function(cid, q, c)
+    -- Recompute harvested fresh every tick against the snapshot taken at start_harvest.
+    -- (Previously this only recounted when mining_state flipped true->false, which never
+    -- happens on a resource tile richer than the target — mining just continues seamlessly
+    -- forever, so the counter silently never advanced even though ore kept accumulating.)
+    local inv_after = c.entity.get_main_inventory().get_contents()
+    local gained = 0
+    for name, data in pairs(inv_after) do
+      local before = q.inv_snapshot[name] and q.inv_snapshot[name].count or 0
+      if data.count > before then gained = gained + (data.count - before) end
+    end
+    q.harvested = gained
+
     -- Target reached
     if q.harvested >= q.target then
       c.entity.mining_state = {mining = false}
+      goals.resolve_watch(cid, "harvest", true, "harvested " .. q.harvested)
       return true
     end
 
     -- Too far from mining area
     if u.distance(c.entity.position, q.position) > MINING_RANGE then
       c.entity.mining_state = {mining = false}
+      goals.resolve_watch(cid, "harvest", false, "moved out of range")
       return true
     end
 
-    -- Start mining first resource
-    if not q.current then
+    -- Current resource depleted (or never started) -> advance to the next one.
+    -- Driven by entity validity, not mining_state, since mining_state can stay
+    -- true indefinitely on a single rich tile.
+    if not q.current or not q.current.entity.valid then
       if not M.start_mining_next(cid) then
         c.entity.mining_state = {mining = false}
+        goals.resolve_watch(cid, "harvest", false, "resources exhausted (" .. q.harvested .. "/" .. q.target .. ")")
         return true
       end
-      q.inv_snapshot = c.entity.get_main_inventory().get_contents()
       return false
     end
 
-    local current = q.current
-
-    -- HYBRID: Let Factorio mine natively, monitor mining_state
-    -- When mining stops (entity depleted or finished), count inventory and move to next
+    -- Resume mining if Factorio dropped the state for a reason other than depletion
+    -- (e.g. the character was briefly interrupted).
     if not c.entity.mining_state or not c.entity.mining_state.mining then
-      -- Mining stopped - count what we got
-      local inv_after = c.entity.get_main_inventory().get_contents()
-      local added = 0
-      for name, data in pairs(inv_after) do
-        local before = q.inv_snapshot[name] and q.inv_snapshot[name].count or 0
-        added = added + (data.count - before)
-      end
-      q.harvested = q.harvested + added
-
-      -- Check if target reached
-      if q.harvested >= q.target then
-        c.entity.mining_state = {mining = false}
-        return true
-      end
-
-      -- Move to next resource
-      q.current = nil
-      if not M.start_mining_next(cid) then
-        c.entity.mining_state = {mining = false}
-        return true
-      end
-      q.inv_snapshot = c.entity.get_main_inventory().get_contents()
+      c.entity.update_selected_entity(q.current.entity.position)
+      c.entity.mining_state = {mining = true, position = q.current.entity.position}
     end
 
     return false
@@ -179,6 +174,7 @@ function M.stop_harvest(cid)
 
   local harvested = q.harvested
   storage.harvest_queues[cid] = nil
+  goals.resolve_watch(cid, "harvest", false, "stopped manually (harvested " .. harvested .. ")")
   return {stopped = true, harvested = harvested}
 end
 
@@ -214,11 +210,16 @@ function M.tick_craft_queues()
     if elapsed < q.ticks_per then return false end
 
     local crafted = c.entity.begin_crafting{recipe = q.recipe, count = 1}
-    if crafted < 1 then return true end
+    if crafted < 1 then
+      goals.resolve_watch(cid, "craft", false, "craft failed (" .. q.crafted .. "/" .. q.target .. ")")
+      return true
+    end
 
     q.crafted = q.crafted + 1
     q.tick_start = game.tick
-    return q.crafted >= q.target
+    local done = q.crafted >= q.target
+    if done then goals.resolve_watch(cid, "craft", true, "crafted " .. q.crafted) end
+    return done
   end)
 end
 
@@ -239,6 +240,7 @@ function M.stop_craft(cid)
   if not q then return {stopped = false} end
   local crafted = q.crafted
   storage.craft_queues[cid] = nil
+  goals.resolve_watch(cid, "craft", false, "stopped manually (crafted " .. crafted .. ")")
   return {stopped = true, crafted = crafted}
 end
 
@@ -286,7 +288,12 @@ function M.tick_build_queues()
       direction = q.direction,
       force = c.entity.force
     }
-    if placed then c.entity.remove_item{name = q.entity, count = 1} end
+    if placed then
+      c.entity.remove_item{name = q.entity, count = 1}
+      goals.resolve_watch(cid, "build", true, "placed " .. q.entity)
+    else
+      goals.resolve_watch(cid, "build", false, "placement failed")
+    end
     return true
   end)
 end
@@ -305,6 +312,7 @@ end
 function M.stop_build(cid)
   if not storage.build_queues[cid] then return {stopped = false} end
   storage.build_queues[cid] = nil
+  goals.resolve_watch(cid, "build", false, "stopped manually")
   return {stopped = true}
 end
 

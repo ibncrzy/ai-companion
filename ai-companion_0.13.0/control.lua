@@ -1,6 +1,7 @@
 -- AI Companion - Factorio 2.x
 local u = require("commands.init")
 local queues = require("commands.queues")
+local goals = require("commands.goals")
 
 -- Get version dynamically from mod info
 local MOD_VERSION = script.active_mods["ai-companion"] or "unknown"
@@ -14,6 +15,7 @@ local function init_storage()
   storage.errors = storage.errors or {}
   storage.companion_markers = storage.companion_markers or {}
   queues.init()
+  goals.init()
 end
 
 local function cleanup_messages()
@@ -543,6 +545,31 @@ remote.add_interface("ai_companion_bridge", {
     c.label = u.render_label(c.entity, name .. "(#" .. cid .. ")", c.color or u.get_companion_color(cid))
     return {id = cid, name = name, renamed = true}
   end,
+
+  -- ===== Persistent goal/task tracking =====
+  -- watch_type ("harvest"|"craft"|"build") auto-resolves the goal to done/failed
+  -- when that companion's matching action queue finishes; omit it for a manually-tracked goal.
+  goal_create = function(id, description, watch_type)
+    local cid = u.find_companion(tostring(id))
+    if not cid then return {error = "Companion not found"} end
+    return goals.create(cid, description, watch_type ~= "" and watch_type or nil)
+  end,
+
+  goal_update = function(goal_id, status, note)
+    return goals.update(goal_id, status, note)
+  end,
+
+  goal_get = function(goal_id)
+    local g = goals.get(goal_id)
+    return g or {error = "Goal not found"}
+  end,
+
+  goal_list = function(companion_id, status)
+    local filter = {}
+    if companion_id and tostring(companion_id) ~= "" then filter.companion_id = tonumber(companion_id) end
+    if status and status ~= "" then filter.status = status end
+    return goals.list(filter)
+  end,
 })
 
 require("commands.action")
@@ -550,6 +577,7 @@ require("commands.building")
 require("commands.chat")
 require("commands.companion")
 require("commands.context")
+require("commands.goal")
 require("commands.item")
 require("commands.move")
 require("commands.research")
