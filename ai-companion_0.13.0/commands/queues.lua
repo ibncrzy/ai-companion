@@ -72,7 +72,7 @@ function M.start_harvest(cid, position, target_count, resource_name)
 
   M.start_mining_next(cid)
   -- Set inv_snapshot immediately after starting mining
-  storage.harvest_queues[cid].inv_snapshot = c.entity.get_main_inventory().get_contents()
+  storage.harvest_queues[cid].inv_snapshot = u.inventory_totals(c.entity.get_main_inventory().get_contents())
   return {started = true, entities = #entities, target = target_count, resource = resource_name}
 end
 
@@ -108,11 +108,11 @@ function M.tick_harvest_queues()
     -- (Previously this only recounted when mining_state flipped true->false, which never
     -- happens on a resource tile richer than the target — mining just continues seamlessly
     -- forever, so the counter silently never advanced even though ore kept accumulating.)
-    local inv_after = c.entity.get_main_inventory().get_contents()
+    local inv_after = u.inventory_totals(c.entity.get_main_inventory().get_contents())
     local gained = 0
-    for name, data in pairs(inv_after) do
-      local before = q.inv_snapshot[name] and q.inv_snapshot[name].count or 0
-      if data.count > before then gained = gained + (data.count - before) end
+    for name, count in pairs(inv_after) do
+      local before = q.inv_snapshot[name] or 0
+      if count > before then gained = gained + (count - before) end
     end
     q.harvested = gained
 

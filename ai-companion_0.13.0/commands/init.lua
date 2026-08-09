@@ -83,6 +83,17 @@ function M.spread_offset(id)
   return {x = math.cos(angle) * 0.3, y = math.sin(angle) * 0.3}
 end
 
+-- LuaInventory:get_contents() returns an ARRAY of {name, count, quality} records
+-- in Factorio 2.0 (not a dict keyed by item name, since quality tiers of the same
+-- item can coexist). Collapse it to a name -> total-count map for delta math.
+function M.inventory_totals(contents)
+  local totals = {}
+  for _, item in pairs(contents) do
+    totals[item.name] = (totals[item.name] or 0) + item.count
+  end
+  return totals
+end
+
 function M.get_direction(from, to)
   local dx, dy = to.x - from.x, to.y - from.y
   if math.abs(dx) < 0.5 and math.abs(dy) < 0.5 then return nil end
