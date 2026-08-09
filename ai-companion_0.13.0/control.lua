@@ -152,6 +152,18 @@ local function equip_companion(e)
   if guns and guns.is_empty() then guns.insert{name = "pistol", count = 1} end
   if ammo then ammo.insert{name = "firearm-magazine", count = 20} end
   e.selected_gun_index = 1
+
+  -- Power armor + belt immunity: characters standing on transport belts get
+  -- physically carried by them, which repeatedly derailed companions walking
+  -- through built-up areas (mining_state/walking_state logic has no belt
+  -- awareness). Belt immunity equipment is the vanilla fix.
+  local armor_inv = e.get_inventory(defines.inventory.character_armor)
+  if armor_inv and armor_inv.is_empty() then armor_inv.insert{name = "power-armor"} end
+  local armor_stack = armor_inv and armor_inv[1]
+  if armor_stack and armor_stack.valid_for_read and armor_stack.grid
+     and armor_stack.grid.count("belt-immunity-equipment") == 0 then
+    armor_stack.grid.put{name = "belt-immunity-equipment"}
+  end
 end
 
 remote.add_interface("ai_companion_bridge", {
