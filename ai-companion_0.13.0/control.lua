@@ -160,9 +160,11 @@ local function equip_companion(e)
   local armor_inv = e.get_inventory(defines.inventory.character_armor)
   if armor_inv and armor_inv.is_empty() then armor_inv.insert{name = "power-armor"} end
   local armor_stack = armor_inv and armor_inv[1]
-  if armor_stack and armor_stack.valid_for_read and armor_stack.grid
-     and armor_stack.grid.count("belt-immunity-equipment") == 0 then
-    armor_stack.grid.put{name = "belt-immunity-equipment"}
+  if armor_stack and armor_stack.valid_for_read and armor_stack.grid then
+    local grid = armor_stack.grid
+    if grid.count("belt-immunity-equipment") == 0 then grid.put{name = "belt-immunity-equipment"} end
+    -- Belt immunity draws power from the grid; without a source it just sits inert.
+    if grid.count("battery-equipment") == 0 then grid.put{name = "battery-equipment"} end
   end
 end
 
