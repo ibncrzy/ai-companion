@@ -533,6 +533,16 @@ remote.add_interface("ai_companion_bridge", {
     if new_id >= storage.companion_next_id then storage.companion_next_id = new_id + 1 end
     return {old_id = old_id, new_id = new_id, renumbered = true}
   end,
+
+  rename_companion = function(id, name)
+    local cid, c = u.find_companion(tostring(id))
+    if not cid then return {error = "Companion not found"} end
+    if not name or name == "" then return {error = "Name required"} end
+    if c.label and c.label.valid then c.label.destroy() end
+    c.name = name
+    c.label = u.render_label(c.entity, name .. "(#" .. cid .. ")", c.color or u.get_companion_color(cid))
+    return {id = cid, name = name, renamed = true}
+  end,
 })
 
 require("commands.action")
