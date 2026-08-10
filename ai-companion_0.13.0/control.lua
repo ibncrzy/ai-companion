@@ -2,6 +2,7 @@
 local u = require("commands.init")
 local queues = require("commands.queues")
 local goals = require("commands.goals")
+local gui = require("commands.gui")
 
 -- Get version dynamically from mod info
 local MOD_VERSION = script.active_mods["ai-companion"] or "unknown"
@@ -16,6 +17,7 @@ local function init_storage()
   storage.companion_markers = storage.companion_markers or {}
   queues.init()
   goals.init()
+  gui.init()
 end
 
 local function cleanup_messages()
@@ -33,11 +35,13 @@ end
 
 script.on_init(function()
   init_storage()
+  gui.ensure_buttons()
   game.print("[AI Companion] v" .. MOD_VERSION .. " ready. /fac for help", u.print_color(u.COLORS.system))
 end)
 
 script.on_configuration_changed(function()
   init_storage()
+  gui.ensure_buttons()
   game.print("[AI Companion] Updated to v" .. MOD_VERSION, u.print_color(u.COLORS.system))
 end)
 
@@ -611,6 +615,13 @@ remote.add_interface("ai_companion_bridge", {
     if status and status ~= "" then filter.status = status end
     return goals.list(filter)
   end,
+
+  toggle_goals_gui = function(player_name)
+    local p = (player_name and player_name ~= "") and game.get_player(player_name) or game.players[1]
+    if not p or not p.valid then return {error = "Player not found"} end
+    gui.toggle(p)
+    return {player = p.name, open = p.gui.screen.ai_companion_goals ~= nil}
+  end,
 })
 
 require("commands.action")
@@ -660,6 +671,10 @@ script.on_nth_tick(5, function(ev)
   if ev.tick % 1800 == 0 then cleanup_messages() end
   -- Update map markers every 30 ticks (0.5 sec)
   if ev.tick % 30 == 0 then update_companion_markers() end
+  -- Keep the goals toolbar button present and refresh any open goals GUI once a second.
+  -- Not just on_init/on_configuration_changed: those don't fire on a plain restart
+  -- with an unchanged mod version, so this is the reliable path on existing saves.
+  if ev.tick % 60 == 0 then gui.ensure_buttons(); gui.refresh_open() end
   -- Process all tick-based queues (realistic actions)
   queues.tick_harvest_queues()
   queues.tick_craft_queues()
