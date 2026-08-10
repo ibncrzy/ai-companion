@@ -566,10 +566,19 @@ remote.add_interface("ai_companion_bridge", {
   -- ===== Persistent goal/task tracking =====
   -- watch_type ("harvest"|"craft"|"build") auto-resolves the goal to done/failed
   -- when that companion's matching action queue finishes; omit it for a manually-tracked goal.
+  -- id may be omitted/empty for a shared goal not tied to any one companion
+  -- (e.g. a strategic milestone) -- watch_type isn't valid without a companion,
+  -- since there's no action queue to watch.
   goal_create = function(id, description, watch_type)
-    local cid = u.find_companion(tostring(id))
-    if not cid then return {error = "Companion not found"} end
-    return goals.create(cid, description, watch_type ~= "" and watch_type or nil)
+    watch_type = watch_type ~= "" and watch_type or nil
+    local cid = nil
+    if id and tostring(id) ~= "" then
+      cid = u.find_companion(tostring(id))
+      if not cid then return {error = "Companion not found"} end
+    elseif watch_type then
+      return {error = "watch_type requires a companion id"}
+    end
+    return goals.create(cid, description, watch_type)
   end,
 
   goal_update = function(goal_id, status, note)

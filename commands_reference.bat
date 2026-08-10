@@ -60,7 +60,7 @@ echo fac_context_clear [all^|id]                  default "all"; clears message 
 echo fac_context_check                            list ^& clear pending context-clear requests
 echo.
 echo --- goal -----------------------------------------------------
-echo fac_goal_create ^<id^> [watch_type] [description]   watch_type: harvest^|craft^|build to auto-resolve, or blank for manual
+echo fac_goal_create ^<id^|-^> [watch_type] [description]  id="-" for a shared goal with no companion; watch_type: harvest^|craft^|build to auto-resolve (requires a companion), or blank for manual
 echo fac_goal_update ^<id^> ^<status^> [note]              status: pending^|in_progress^|done^|failed
 echo fac_goal_list [id^|status]                          blank = all goals
 echo fac_goal_get ^<id^>

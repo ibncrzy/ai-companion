@@ -2,12 +2,18 @@
 local u = require("commands.init")
 local goals = require("commands.goals")
 
+-- <id> may be "-" for a shared goal not tied to any one companion (e.g. a
+-- strategic milestone); watch_type isn't valid without a companion.
 commands.add_command("fac_goal_create", nil, function(cmd)
   u.safe_command(function()
     local args = u.parse_args("^(%S+)%s+(%S*)%s*(.*)$", cmd.parameter)
-    local id, c = u.find_companion(args[1])
-    if not id then u.error_response("Companion not found"); return end
+    local id = nil
+    if args[1] and args[1] ~= "-" then
+      id = u.find_companion(args[1])
+      if not id then u.error_response("Companion not found"); return end
+    end
     local watch_type = args[2] ~= "" and args[2] or nil
+    if not id and watch_type then u.error_response("watch_type requires a companion id"); return end
     local description = args[3] ~= "" and args[3] or watch_type or ""
     u.json_response(goals.create(id, description, watch_type))
   end)
