@@ -195,6 +195,24 @@ commands.add_command("fac_building_place_start", nil, function(cmd)
   end)
 end)
 
+-- Instant multi-entity placement from a Factorio blueprint export string.
+commands.add_command("fac_building_place_blueprint", nil, function(cmd)
+  u.safe_command(function()
+    local args = u.parse_args("^(%S+)%s+([%d.-]+)%s+([%d.-]+)%s+(.+)$", cmd.parameter)
+    local id, c = u.find_companion(args[1])
+    if not id then u.error_response("Companion not found"); return end
+    local x, y = tonumber(args[2]), tonumber(args[3])
+    if not x or not y or not args[4] or args[4] == "" then
+      u.error_response("Usage: fac_building_place_blueprint <id> <x> <y> <blueprint_string>"); return
+    end
+    local bp, err = u.decode_blueprint(args[4])
+    if not bp then u.error_response(err); return end
+    local result = u.place_blueprint(c, bp, x, y)
+    result.id = id
+    u.json_response(result)
+  end)
+end)
+
 commands.add_command("fac_building_place_status", nil, function(cmd)
   u.safe_command(function()
     local args = u.parse_args("^(%S+)$", cmd.parameter)

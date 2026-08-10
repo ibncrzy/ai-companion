@@ -94,6 +94,54 @@ function M.inventory_totals(contents)
   return totals
 end
 
+-- Decode a Factorio blueprint export string into its entity list.
+-- Returns (blueprint_table, nil) on success or (nil, error_message) on failure.
+function M.decode_blueprint(str)
+  -- Export strings start with a version byte (e.g. "0") that must be stripped
+  -- before decode_string; passing it through makes decode_string return nil.
+  local ok, decoded = pcall(helpers.decode_string, str:sub(2))
+  if not ok or not decoded then return nil, "Invalid blueprint string" end
+  local ok2, data = pcall(helpers.json_to_table, decoded)
+  if not ok2 or not data then return nil, "Failed to parse blueprint" end
+  local bp = data.blueprint
+  if not bp or not bp.entities or #bp.entities == 0 then
+    return nil, "No entities in blueprint (blueprint books not supported)"
+  end
+  return bp
+end
+
+-- Instantly place every entity in a decoded blueprint from the companion's
+-- inventory, anchored so the blueprint's first entity lands at (x, y).
+-- Assumes item name == entity name (same simplifying assumption fac_building_place
+-- already makes), so this won't handle entities whose placed item differs from
+-- their entity name.
+function M.place_blueprint(c, bp, x, y)
+  local surf, force = c.entity.surface, c.entity.force
+  local inv = c.entity.get_inventory(defines.inventory.character_main)
+  local anchor = bp.entities[1].position
+  local offset = {x = x - anchor.x, y = y - anchor.y}
+
+  local placed, failed = {}, {}
+  for _, ent in ipairs(bp.entities) do
+    local pos = {x = ent.position.x + offset.x, y = ent.position.y + offset.y}
+    local dir = ent.direction or 0
+    if inv.get_item_count(ent.name) < 1 then
+      failed[#failed + 1] = {name = ent.name, reason = "not in inventory", position = pos}
+    elseif not surf.can_place_entity{name = ent.name, position = pos, direction = dir, force = force} then
+      failed[#failed + 1] = {name = ent.name, reason = "cannot place", position = pos}
+    else
+      local e = surf.create_entity{name = ent.name, position = pos, direction = dir, force = force}
+      if e then
+        inv.remove{name = ent.name, count = 1}
+        placed[#placed + 1] = {name = ent.name, position = pos}
+      else
+        failed[#failed + 1] = {name = ent.name, reason = "create_entity failed", position = pos}
+      end
+    end
+  end
+  return {placed = #placed, failed = #failed, entities = #bp.entities, failures = failed}
+end
+
 function M.get_direction(from, to)
   local dx, dy = to.x - from.x, to.y - from.y
   if math.abs(dx) < 0.5 and math.abs(dy) < 0.5 then return nil end

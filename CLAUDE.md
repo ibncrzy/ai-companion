@@ -61,6 +61,8 @@ Most domains offer two flavors of the same action:
 
 Follow ("`move_follow`") and general walking use a separate `storage.walking_queues` loop in `control.lua` (not in `queues.lua`), including stuck-detection/sidestep logic to get companions unstuck from terrain.
 
+`fac_building_place_blueprint` / bridge `place_blueprint` decode a Factorio blueprint export string (`u.decode_blueprint`, via `helpers.decode_string` + `helpers.json_to_table`) and place every entity instantly (`u.place_blueprint`), anchored so the blueprint's first entity lands at the given `(x, y)`. Like `fac_building_place`, it assumes item name == entity name — no item-name mapping for entities where those differ.
+
 ### Response format
 RCON command handlers respond via `u.json_response(data)` (success) or `u.error_response(msg, ctx)` (failure, also logged to `storage.errors`), both JSON-serialized through `rcon.print`. Handlers are wrapped in `u.safe_command(fn)` (pcall) so a Lua error becomes a JSON error response instead of crashing the mod. Keep this pattern for any new command.
 

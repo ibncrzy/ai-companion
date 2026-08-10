@@ -462,6 +462,21 @@ remote.add_interface("ai_companion_bridge", {
     return queues.get_build_status(cid)
   end,
 
+  -- Instant multi-entity placement from a Factorio blueprint export string.
+  place_blueprint = function(id, x, y, blueprint_string)
+    local cid, c = u.find_companion(tostring(id))
+    if not cid then return {error = "Companion not found"} end
+    local tx, ty = tonumber(x), tonumber(y)
+    if not tx or not ty or not blueprint_string or blueprint_string == "" then
+      return {error = "Invalid arguments"}
+    end
+    local bp, err = u.decode_blueprint(blueprint_string)
+    if not bp then return {error = err} end
+    local result = u.place_blueprint(c, bp, tx, ty)
+    result.id = cid
+    return result
+  end,
+
   build_stop = function(id)
     local cid = u.find_companion(tostring(id))
     if not cid then return {error = "Companion not found"} end

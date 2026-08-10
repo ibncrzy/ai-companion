@@ -38,6 +38,8 @@ echo fac_building_can_place ^<id^> ^<entity^> ^<x^> ^<y^> [dir=0]
 echo fac_building_place ^<id^> ^<entity^> ^<x^> ^<y^> [dir=0]        instant placement
 echo fac_building_place_start ^<id^> ^<entity^> ^<x^> ^<y^> [dir_name]  tick-based ^(realistic^) placement
 echo fac_building_place_status ^<id^>              check tick-based placement progress
+echo fac_building_place_blueprint ^<id^> ^<x^> ^<y^> ^<blueprint_string^>  instant multi-entity placement from a blueprint export string
+echo   anchored so the blueprint's first entity lands at (x,y); item name must match entity name
 echo fac_building_remove ^<id^> ^<entity^> ^<x^> ^<y^>
 echo fac_building_rotate ^<id^> ^<x^> ^<y^> ^<dir 0-3^>
 echo fac_building_info ^<id^> ^<entity^> ^<x^> ^<y^>    entity name/type/health/energy/recipe
