@@ -40,6 +40,7 @@ echo fac_building_place_start ^<id^> ^<entity^> ^<x^> ^<y^> [dir_name]  tick-bas
 echo fac_building_place_status ^<id^>              check tick-based placement progress
 echo fac_building_place_blueprint ^<id^> ^<x^> ^<y^> ^<blueprint_string^>  instant multi-entity placement from a blueprint export string
 echo   anchored so the blueprint's first entity lands at (x,y); item name must match entity name
+echo fac_building_finish_ghosts ^<id^> ^<x^> ^<y^> [radius=10]   complete construction ghosts in radius using matching items from inventory
 echo fac_building_remove ^<id^> ^<entity^> ^<x^> ^<y^>
 echo fac_building_rotate ^<id^> ^<x^> ^<y^> ^<dir 0-3^>
 echo fac_building_info ^<id^> ^<entity^> ^<x^> ^<y^>    entity name/type/health/energy/recipe

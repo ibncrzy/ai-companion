@@ -481,6 +481,18 @@ remote.add_interface("ai_companion_bridge", {
     return result
   end,
 
+  -- Complete construction ghosts within radius of (x,y) using matching items
+  -- from the companion's inventory.
+  finish_ghosts = function(id, x, y, radius)
+    local cid, c = u.find_companion(tostring(id))
+    if not cid then return {error = "Companion not found"} end
+    local tx, ty = tonumber(x), tonumber(y)
+    if not tx or not ty then return {error = "Invalid coordinates"} end
+    local result = u.finish_ghosts(c, tx, ty, tonumber(radius) or 10)
+    result.id = cid
+    return result
+  end,
+
   build_stop = function(id)
     local cid = u.find_companion(tostring(id))
     if not cid then return {error = "Companion not found"} end

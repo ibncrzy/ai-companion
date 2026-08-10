@@ -142,6 +142,35 @@ function M.place_blueprint(c, bp, x, y)
   return {placed = #placed, failed = #failed, entities = #bp.entities, failures = failed}
 end
 
+-- Complete construction ghosts (unbuilt blueprint entities) within radius of
+-- (x, y), consuming matching items from the companion's inventory. Assumes
+-- item name == entity name, same simplifying assumption as fac_building_place.
+function M.finish_ghosts(c, x, y, radius)
+  local surf, force = c.entity.surface, c.entity.force
+  local inv = c.entity.get_inventory(defines.inventory.character_main)
+  local ghosts = surf.find_entities_filtered{type = "entity-ghost", position = {x = x, y = y}, radius = radius, force = force}
+
+  local finished, failed = {}, {}
+  for _, ghost in ipairs(ghosts) do
+    if ghost.valid then
+      local pos = {x = ghost.position.x, y = ghost.position.y}
+      local name = ghost.ghost_name
+      if inv.get_item_count(name) < 1 then
+        failed[#failed + 1] = {name = name, reason = "not in inventory", position = pos}
+      else
+        local ok, revived = pcall(function() return ghost.revive{raise_revive = false} end)
+        if ok and revived then
+          inv.remove{name = name, count = 1}
+          finished[#finished + 1] = {name = name, position = pos}
+        else
+          failed[#failed + 1] = {name = name, reason = "revive failed", position = pos}
+        end
+      end
+    end
+  end
+  return {finished = #finished, failed = #failed, total = #ghosts, failures = failed}
+end
+
 function M.get_direction(from, to)
   local dx, dy = to.x - from.x, to.y - from.y
   if math.abs(dx) < 0.5 and math.abs(dy) < 0.5 then return nil end

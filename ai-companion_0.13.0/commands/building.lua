@@ -213,6 +213,22 @@ commands.add_command("fac_building_place_blueprint", nil, function(cmd)
   end)
 end)
 
+-- Complete construction ghosts within radius of (x,y) using matching items
+-- from the companion's inventory.
+commands.add_command("fac_building_finish_ghosts", nil, function(cmd)
+  u.safe_command(function()
+    local args = u.parse_args("^(%S+)%s+([%d.-]+)%s+([%d.-]+)%s*(%d*)$", cmd.parameter)
+    local id, c = u.find_companion(args[1])
+    if not id then u.error_response("Companion not found"); return end
+    local x, y = tonumber(args[2]), tonumber(args[3])
+    if not x or not y then u.error_response("Invalid coordinates"); return end
+    local radius = tonumber(args[4]) or 10
+    local result = u.finish_ghosts(c, x, y, radius)
+    result.id = id
+    u.json_response(result)
+  end)
+end)
+
 commands.add_command("fac_building_place_status", nil, function(cmd)
   u.safe_command(function()
     local args = u.parse_args("^(%S+)$", cmd.parameter)
