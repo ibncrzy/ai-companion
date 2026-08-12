@@ -13,6 +13,7 @@ local STATUS_COLOR = {
 
 function M.init()
   storage.goal_gui_open = storage.goal_gui_open or {}
+  storage.player_position_renders = storage.player_position_renders or {}
 end
 
 local function companion_label(companion_id)
@@ -106,12 +107,21 @@ end
 
 -- Called periodically from control.lua's tick handler to keep the readout live.
 function M.update_position_labels()
+  storage.player_position_renders = storage.player_position_renders or {}
   for _, player in pairs(game.players) do
     if player.valid and player.character then
+      local pos = player.character.position
+      local text = string.format("X: %.0f  Y: %.0f", pos.x, pos.y)
+
       local label = player.gui.top.ai_companion_position
-      if label and label.valid then
-        local pos = player.character.position
-        label.caption = string.format("X: %.0f  Y: %.0f", pos.x, pos.y)
+      if label and label.valid then label.caption = text end
+
+      -- Floating in-world label above the character, same as companion nametags.
+      local render = storage.player_position_renders[player.index]
+      if render and render.valid then
+        render.text = player.name .. "  " .. text
+      else
+        storage.player_position_renders[player.index] = u.render_label(player.character, player.name .. "  " .. text, {r = 1, g = 1, b = 1})
       end
     end
   end
