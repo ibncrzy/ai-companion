@@ -132,9 +132,13 @@ function M.place_blueprint(c, bp, x, y)
     local pos = {x = ent.position.x + offset.x, y = ent.position.y + offset.y}
     local dir = ent.direction or 0
     local item_name = M.place_item_name(ent.name)
+    -- can_place_entity is unreliable for rail-type entities - skip the
+    -- pre-check for those and let create_entity's result decide instead.
+    local proto = prototypes.entity[ent.name]
+    local is_rail = proto and proto.type:find("rail") ~= nil
     if inv.get_item_count(item_name) < 1 then
       failed[#failed + 1] = {name = ent.name, reason = "not in inventory", position = pos}
-    elseif not surf.can_place_entity{name = ent.name, position = pos, direction = dir, force = force} then
+    elseif not is_rail and not surf.can_place_entity{name = ent.name, position = pos, direction = dir, force = force} then
       failed[#failed + 1] = {name = ent.name, reason = "cannot place", position = pos}
     else
       local e = surf.create_entity{name = ent.name, position = pos, direction = dir, force = force}

@@ -264,8 +264,16 @@ function M.start_build(cid, entity_name, position, direction)
     return {error = "No " .. item_name .. " in inventory"}
   end
 
+  -- can_place_entity is unreliable for rail-type entities (straight-rail,
+  -- elevated-straight-rail, rail-ramp, curved variants, etc.) - it reports
+  -- false for placements that create_entity then succeeds at. Skip the
+  -- pre-check for those and let tick_build_queues's actual create_entity
+  -- call (which already handles failure via goals.resolve_watch) be the
+  -- source of truth instead of failing fast on a false negative.
   local surface = c.entity.surface
-  if not surface.can_place_entity{name = entity_name, position = position, direction = dir, force = c.entity.force} then
+  local proto = prototypes.entity[entity_name]
+  local is_rail = proto and proto.type:find("rail") ~= nil
+  if not is_rail and not surface.can_place_entity{name = entity_name, position = position, direction = dir, force = c.entity.force} then
     return {error = "Cannot place here"}
   end
 

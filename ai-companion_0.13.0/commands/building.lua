@@ -14,6 +14,13 @@ commands.add_command("fac_building_can_place", nil, function(cmd)
     if dist > (c.entity.reach_distance or 10) then u.json_response({id = id, can_place = false, reason = "Too far"}); return end
     local inv = c.entity.get_inventory(defines.inventory.character_main)
     if inv.get_item_count(u.place_item_name(name)) == 0 then u.json_response({id = id, can_place = false, reason = "Not in inventory"}); return end
+    -- can_place_entity is unreliable for rail-type entities (reports false for
+    -- placements that create_entity then succeeds at) - report optimistically
+    -- for those rather than a potentially-wrong "cannot place".
+    local proto = prototypes.entity[name]
+    if proto and proto.type:find("rail") then
+      u.json_response({id = id, can_place = true, entity = name, note = "rail placement check is unreliable; not verified"}); return
+    end
     local can = c.entity.surface.can_place_entity{name = name, position = {x=x, y=y}, direction = dir, force = c.entity.force}
     u.json_response({id = id, can_place = can, entity = name})
   end)
@@ -33,7 +40,11 @@ commands.add_command("fac_building_place", nil, function(cmd)
     local inv = c.entity.get_inventory(defines.inventory.character_main)
     if inv.get_item_count(item_name) == 0 then u.json_response({id = id, error = "Not in inventory"}); return end
     local surf = c.entity.surface
-    if not surf.can_place_entity{name = name, position = {x=x, y=y}, direction = dir, force = c.entity.force} then
+    -- Same can_place_entity unreliability as fac_building_can_place - skip the
+    -- pre-check for rail entities and let create_entity's actual result decide.
+    local proto = prototypes.entity[name]
+    local is_rail = proto and proto.type:find("rail") ~= nil
+    if not is_rail and not surf.can_place_entity{name = name, position = {x=x, y=y}, direction = dir, force = c.entity.force} then
       u.json_response({id = id, error = "Cannot place"}); return
     end
     local e = surf.create_entity{name = name, position = {x=x, y=y}, direction = dir, force = c.entity.force}
