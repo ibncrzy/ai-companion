@@ -92,11 +92,39 @@ local function ensure_button(player)
   }
 end
 
+local function ensure_position_label(player)
+  if player.gui.top.ai_companion_position then return end
+  local label = player.gui.top.add{
+    type = "label",
+    name = "ai_companion_position",
+    caption = "X: 0  Y: 0"
+  }
+  label.style.font = "default-bold"
+  label.style.left_padding = 8
+  label.style.right_padding = 8
+end
+
+-- Called periodically from control.lua's tick handler to keep the readout live.
+function M.update_position_labels()
+  for _, player in pairs(game.players) do
+    if player.valid and player.character then
+      local label = player.gui.top.ai_companion_position
+      if label and label.valid then
+        local pos = player.character.position
+        label.caption = string.format("X: %.0f  Y: %.0f", pos.x, pos.y)
+      end
+    end
+  end
+end
+
 -- on_player_created only fires for genuinely new players, so already-connected
 -- players need the button added explicitly on init/config-changed/mod reload.
 function M.ensure_buttons()
   for _, player in pairs(game.players) do
-    if player.valid then ensure_button(player) end
+    if player.valid then
+      ensure_button(player)
+      ensure_position_label(player)
+    end
   end
 end
 

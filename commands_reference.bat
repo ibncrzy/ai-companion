@@ -67,6 +67,7 @@ echo fac_goal_create ^<id^|-^> [watch_type] [description]  id="-" for a shared g
 echo fac_goal_update ^<id^> ^<status^> [note]              status: pending^|in_progress^|done^|failed
 echo fac_goal_list [id^|status]                          blank = all goals
 echo fac_goal_get ^<id^>
+echo fac_goal_delete ^<id^>
 echo.
 echo --- item -----------------------------------------------------
 echo fac_item_craft ^<id^> ^<item^> [count=1]         instant craft

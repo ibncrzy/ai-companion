@@ -359,9 +359,9 @@ remote.add_interface("ai_companion_bridge", {
     local dropped = {}
     local inv = c.entity.get_inventory(defines.inventory.character_main)
     if inv then
-      for name, count in pairs(inv.get_contents()) do
-        surf.spill_item_stack{position = pos, stack = {name = name, count = count}, enable_looted = true}
-        dropped[#dropped + 1] = {name = name, count = count}
+      for _, item in pairs(inv.get_contents()) do
+        surf.spill_item_stack{position = pos, stack = {name = item.name, count = item.count, quality = item.quality}, enable_looted = true}
+        dropped[#dropped + 1] = {name = item.name, count = item.count}
       end
     end
     if c.label and c.label.valid then c.label.destroy() end
@@ -621,6 +621,10 @@ remote.add_interface("ai_companion_bridge", {
     return g or {error = "Goal not found"}
   end,
 
+  goal_delete = function(goal_id)
+    return goals.delete(goal_id)
+  end,
+
   goal_list = function(companion_id, status)
     local filter = {}
     if companion_id and tostring(companion_id) ~= "" then filter.companion_id = tonumber(companion_id) end
@@ -681,8 +685,8 @@ end
 
 script.on_nth_tick(5, function(ev)
   if ev.tick % 1800 == 0 then cleanup_messages() end
-  -- Update map markers every 30 ticks (0.5 sec)
-  if ev.tick % 30 == 0 then update_companion_markers() end
+  -- Update map markers and the position readout every 30 ticks (0.5 sec)
+  if ev.tick % 30 == 0 then update_companion_markers(); gui.update_position_labels() end
   -- Keep the goals toolbar button present and refresh any open goals GUI once a second.
   -- Not just on_init/on_configuration_changed: those don't fire on a plain restart
   -- with an unchanged mod version, so this is the reliable path on existing saves.

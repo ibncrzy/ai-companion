@@ -57,6 +57,15 @@ function M.get(goal_id)
   return storage.goals[tonumber(goal_id)]
 end
 
+function M.delete(goal_id)
+  M.init()
+  local id = tonumber(goal_id)
+  local g = storage.goals[id]
+  if not g then return {error = "Goal not found"} end
+  storage.goals[id] = nil
+  return {id = id, deleted = true}
+end
+
 function M.list(filter)
   M.init()
   filter = filter or {}
