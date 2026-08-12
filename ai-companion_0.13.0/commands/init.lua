@@ -94,6 +94,15 @@ function M.inventory_totals(contents)
   return totals
 end
 
+-- The item that places a given entity doesn't always share its name (e.g.
+-- entity "straight-rail"/"elevated-straight-rail" are both placed by item
+-- "rail"). Resolve via the prototype instead of assuming item == entity.
+function M.place_item_name(entity_name)
+  local proto = prototypes.entity[entity_name]
+  local items = proto and proto.items_to_place_this
+  return (items and items[1] and items[1].name) or entity_name
+end
+
 -- Decode a Factorio blueprint export string into its entity list.
 -- Returns (blueprint_table, nil) on success or (nil, error_message) on failure.
 function M.decode_blueprint(str)
@@ -112,9 +121,6 @@ end
 
 -- Instantly place every entity in a decoded blueprint from the companion's
 -- inventory, anchored so the blueprint's first entity lands at (x, y).
--- Assumes item name == entity name (same simplifying assumption fac_building_place
--- already makes), so this won't handle entities whose placed item differs from
--- their entity name.
 function M.place_blueprint(c, bp, x, y)
   local surf, force = c.entity.surface, c.entity.force
   local inv = c.entity.get_inventory(defines.inventory.character_main)
@@ -125,14 +131,15 @@ function M.place_blueprint(c, bp, x, y)
   for _, ent in ipairs(bp.entities) do
     local pos = {x = ent.position.x + offset.x, y = ent.position.y + offset.y}
     local dir = ent.direction or 0
-    if inv.get_item_count(ent.name) < 1 then
+    local item_name = M.place_item_name(ent.name)
+    if inv.get_item_count(item_name) < 1 then
       failed[#failed + 1] = {name = ent.name, reason = "not in inventory", position = pos}
     elseif not surf.can_place_entity{name = ent.name, position = pos, direction = dir, force = force} then
       failed[#failed + 1] = {name = ent.name, reason = "cannot place", position = pos}
     else
       local e = surf.create_entity{name = ent.name, position = pos, direction = dir, force = force}
       if e then
-        inv.remove{name = ent.name, count = 1}
+        inv.remove{name = item_name, count = 1}
         placed[#placed + 1] = {name = ent.name, position = pos}
       else
         failed[#failed + 1] = {name = ent.name, reason = "create_entity failed", position = pos}
@@ -143,8 +150,7 @@ function M.place_blueprint(c, bp, x, y)
 end
 
 -- Complete construction ghosts (unbuilt blueprint entities) within radius of
--- (x, y), consuming matching items from the companion's inventory. Assumes
--- item name == entity name, same simplifying assumption as fac_building_place.
+-- (x, y), consuming matching items from the companion's inventory.
 function M.finish_ghosts(c, x, y, radius)
   local surf, force = c.entity.surface, c.entity.force
   local inv = c.entity.get_inventory(defines.inventory.character_main)
@@ -155,12 +161,13 @@ function M.finish_ghosts(c, x, y, radius)
     if ghost.valid then
       local pos = {x = ghost.position.x, y = ghost.position.y}
       local name = ghost.ghost_name
-      if inv.get_item_count(name) < 1 then
+      local item_name = M.place_item_name(name)
+      if inv.get_item_count(item_name) < 1 then
         failed[#failed + 1] = {name = name, reason = "not in inventory", position = pos}
       else
         local ok, revived = pcall(function() return ghost.revive{raise_revive = false} end)
         if ok and revived then
-          inv.remove{name = name, count = 1}
+          inv.remove{name = item_name, count = 1}
           finished[#finished + 1] = {name = name, position = pos}
         else
           failed[#failed + 1] = {name = name, reason = "revive failed", position = pos}

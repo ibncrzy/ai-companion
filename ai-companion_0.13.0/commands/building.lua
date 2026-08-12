@@ -13,7 +13,7 @@ commands.add_command("fac_building_can_place", nil, function(cmd)
     local dist = u.distance(c.entity.position, {x=x, y=y})
     if dist > (c.entity.reach_distance or 10) then u.json_response({id = id, can_place = false, reason = "Too far"}); return end
     local inv = c.entity.get_inventory(defines.inventory.character_main)
-    if inv.get_item_count(name) == 0 then u.json_response({id = id, can_place = false, reason = "Not in inventory"}); return end
+    if inv.get_item_count(u.place_item_name(name)) == 0 then u.json_response({id = id, can_place = false, reason = "Not in inventory"}); return end
     local can = c.entity.surface.can_place_entity{name = name, position = {x=x, y=y}, direction = dir, force = c.entity.force}
     u.json_response({id = id, can_place = can, entity = name})
   end)
@@ -29,14 +29,15 @@ commands.add_command("fac_building_place", nil, function(cmd)
     if not x or not y then u.error_response("Invalid coordinates"); return end
     local dist = u.distance(c.entity.position, {x=x, y=y})
     if dist > (c.entity.reach_distance or 10) then u.json_response({id = id, error = "Too far"}); return end
+    local item_name = u.place_item_name(name)
     local inv = c.entity.get_inventory(defines.inventory.character_main)
-    if inv.get_item_count(name) == 0 then u.json_response({id = id, error = "Not in inventory"}); return end
+    if inv.get_item_count(item_name) == 0 then u.json_response({id = id, error = "Not in inventory"}); return end
     local surf = c.entity.surface
     if not surf.can_place_entity{name = name, position = {x=x, y=y}, direction = dir, force = c.entity.force} then
       u.json_response({id = id, error = "Cannot place"}); return
     end
     local e = surf.create_entity{name = name, position = {x=x, y=y}, direction = dir, force = c.entity.force}
-    if e then inv.remove{name = name, count = 1}; u.json_response({id = id, placed = true, entity = name})
+    if e then inv.remove{name = item_name, count = 1}; u.json_response({id = id, placed = true, entity = name})
     else u.json_response({id = id, error = "Failed"}) end
   end)
 end)

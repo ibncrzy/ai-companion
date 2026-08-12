@@ -258,9 +258,10 @@ function M.start_build(cid, entity_name, position, direction)
     return {error = "Too far (dist: " .. math.floor(dist) .. ", reach: " .. reach .. ")"}
   end
 
+  local item_name = u.place_item_name(entity_name)
   local inv = c.entity.get_main_inventory()
-  if inv.get_item_count(entity_name) < 1 then
-    return {error = "No " .. entity_name .. " in inventory"}
+  if inv.get_item_count(item_name) < 1 then
+    return {error = "No " .. item_name .. " in inventory"}
   end
 
   local surface = c.entity.surface
@@ -270,6 +271,7 @@ function M.start_build(cid, entity_name, position, direction)
 
   storage.build_queues[cid] = {
     entity = entity_name,
+    item = item_name,
     position = position,
     direction = dir,
     tick_start = game.tick
@@ -289,7 +291,7 @@ function M.tick_build_queues()
       force = c.entity.force
     }
     if placed then
-      c.entity.remove_item{name = q.entity, count = 1}
+      c.entity.remove_item{name = q.item, count = 1}
       goals.resolve_watch(cid, "build", true, "placed " .. q.entity)
     else
       goals.resolve_watch(cid, "build", false, "placement failed")
