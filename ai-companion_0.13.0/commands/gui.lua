@@ -93,6 +93,23 @@ local function ensure_button(player)
   }
 end
 
+-- Factorio's shared mod-gui library (used by various mods to add top-bar
+-- buttons) leaves an empty mod_gui_top_frame/mod_gui_inner_frame pair
+-- sitting visible even when nothing ever populated it. Not ours to own, but
+-- since any mod that wants it will just recreate it on demand, it's safe to
+-- clear out while it's empty rather than leave a blank box on screen.
+local function cleanup_empty_mod_gui_frame(player)
+  local ok = pcall(function()
+    local frame = player.gui.top.mod_gui_top_frame
+    if not frame or not frame.valid then return end
+    local inner = frame.mod_gui_inner_frame
+    if inner and inner.valid and #inner.children == 0 then
+      frame.destroy()
+    end
+  end)
+  if not ok then return end
+end
+
 local function ensure_position_label(player)
   if player.gui.top.ai_companion_position then return end
   local label = player.gui.top.add{
@@ -134,6 +151,7 @@ function M.ensure_buttons()
     if player.valid then
       ensure_button(player)
       ensure_position_label(player)
+      cleanup_empty_mod_gui_frame(player)
     end
   end
 end
