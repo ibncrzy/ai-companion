@@ -1,0 +1,316 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+<title>AI Companion Control</title>
+<style>
+  :root {
+    --bg: #14161a;
+    --panel: #1d2026;
+    --panel-2: #262a32;
+    --text: #e8e9ec;
+    --muted: #8a8f98;
+    --accent: #ff9d3d;
+    --accent-2: #4da3ff;
+    --danger: #ff5d5d;
+    --ok: #52d17c;
+    --border: #2f333c;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    display: flex;
+    flex-direction: column;
+  }
+  header {
+    padding: 14px 16px 10px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  header h1 {
+    font-size: 17px;
+    margin: 0;
+    font-weight: 600;
+  }
+  #status-dot {
+    width: 9px; height: 9px; border-radius: 50%;
+    background: var(--muted);
+    flex-shrink: 0;
+  }
+  #status-dot.ok { background: var(--ok); }
+  #status-dot.err { background: var(--danger); }
+
+  .companion-bar {
+    display: flex;
+    gap: 8px;
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border);
+    align-items: center;
+  }
+  select {
+    flex: 1;
+    background: var(--panel-2);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px;
+    font-size: 15px;
+  }
+  .icon-btn {
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 15px;
+  }
+
+  .actions {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+  }
+  .actions button {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 10px;
+    padding: 12px 6px;
+    font-size: 13px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+  }
+  .actions button:active { background: var(--panel-2); }
+  .actions button .emoji { font-size: 20px; }
+  .actions button.spawn { color: var(--ok); }
+  .actions button.stop { color: var(--danger); }
+
+  #log {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .msg { max-width: 88%; padding: 10px 12px; border-radius: 12px; font-size: 14.5px; line-height: 1.4; white-space: pre-wrap; }
+  .msg.user { align-self: flex-end; background: var(--accent-2); color: #06131f; border-bottom-right-radius: 3px; }
+  .msg.bot { align-self: flex-start; background: var(--panel-2); border-bottom-left-radius: 3px; }
+  .msg.sys { align-self: center; color: var(--muted); font-size: 12.5px; background: none; padding: 2px; }
+  .msg .cmds { margin-top: 6px; font-size: 11.5px; color: var(--muted); font-family: monospace; }
+
+  form#chat-form {
+    display: flex;
+    gap: 8px;
+    padding: 10px 16px calc(10px + env(safe-area-inset-bottom));
+    border-top: 1px solid var(--border);
+    background: var(--panel);
+  }
+  #chat-input {
+    flex: 1;
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 20px;
+    padding: 11px 16px;
+    font-size: 15px;
+  }
+  #chat-form button {
+    background: var(--accent);
+    border: none;
+    color: #201200;
+    font-weight: 600;
+    border-radius: 20px;
+    padding: 0 18px;
+    font-size: 15px;
+  }
+  #chat-form button:disabled { opacity: 0.5; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🤖 AI Companion</h1>
+  <span id="status-dot"></span>
+</header>
+
+<div class="companion-bar">
+  <select id="companion-select"><option>Loading…</option></select>
+  <button class="icon-btn" id="refresh-btn">↻</button>
+</div>
+
+<div class="actions">
+  <button class="spawn" id="btn-spawn"><span class="emoji">➕</span>Spawn</button>
+  <button id="btn-follow"><span class="emoji">🧭</span>Follow me</button>
+  <button class="stop" id="btn-stop"><span class="emoji">✋</span>Stop</button>
+  <button id="btn-status"><span class="emoji">📍</span>Status</button>
+  <button id="btn-defend"><span class="emoji">🛡️</span>Defend on</button>
+  <button id="btn-attackstop"><span class="emoji">⚔️</span>Attack stop</button>
+</div>
+
+<div id="log"></div>
+
+<form id="chat-form">
+  <input id="chat-input" type="text" placeholder="Tell your companion what to do…" autocomplete="off" />
+  <button type="submit" id="send-btn">Send</button>
+</form>
+
+<script>
+const log = document.getElementById("log");
+const select = document.getElementById("companion-select");
+const statusDot = document.getElementById("status-dot");
+let history = [];
+
+function addMsg(text, cls, cmds) {
+  const div = document.createElement("div");
+  div.className = "msg " + cls;
+  div.textContent = text;
+  if (cmds && cmds.length) {
+    const c = document.createElement("div");
+    c.className = "cmds";
+    c.textContent = cmds.map(x => x.command).join("\n");
+    div.appendChild(c);
+  }
+  log.appendChild(div);
+  log.scrollTop = log.scrollHeight;
+  return div;
+}
+
+function currentId() {
+  return select.value || null;
+}
+
+async function refreshCompanions() {
+  try {
+    const res = await fetch("/api/companions");
+    const data = await res.json();
+    statusDot.className = "ok";
+    const list = Array.isArray(data) ? data : (data.error ? [] : data);
+    const prev = select.value;
+    select.innerHTML = "";
+    if (!list.length) {
+      select.innerHTML = "<option value=''>No companions — spawn one</option>";
+      return;
+    }
+    for (const c of list) {
+      const opt = document.createElement("option");
+      opt.value = c.id;
+      opt.textContent = `#${c.id}  (${Math.round(c.x)}, ${Math.round(c.y)})  ${c.health}/${c.max_health} hp`;
+      select.appendChild(opt);
+    }
+    if (prev && list.some(c => String(c.id) === String(prev))) select.value = prev;
+  } catch (err) {
+    statusDot.className = "err";
+    addMsg("Couldn't reach the server: " + err.message, "sys");
+  }
+}
+
+async function runCommand(command) {
+  const res = await fetch("/api/command", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ command }),
+  });
+  const data = await res.json();
+  return data;
+}
+
+document.getElementById("refresh-btn").onclick = refreshCompanions;
+
+document.getElementById("btn-spawn").onclick = async () => {
+  addMsg("Spawning companion…", "sys");
+  const r = await runCommand("fac_companion_spawn");
+  addMsg(JSON.stringify(r), "sys");
+  refreshCompanions();
+};
+
+document.getElementById("btn-follow").onclick = async () => {
+  const id = currentId();
+  if (!id) return addMsg("Pick a companion first", "sys");
+  const player = prompt("Player name to follow:", window.localStorage.getItem("playerName") || "");
+  if (!player) return;
+  window.localStorage.setItem("playerName", player);
+  const r = await runCommand(`fac_move_follow ${id} ${player}`);
+  addMsg(JSON.stringify(r), "sys");
+};
+
+document.getElementById("btn-stop").onclick = async () => {
+  const id = currentId();
+  if (!id) return addMsg("Pick a companion first", "sys");
+  const r = await runCommand(`fac_move_stop ${id}`);
+  addMsg(JSON.stringify(r), "sys");
+};
+
+document.getElementById("btn-status").onclick = async () => {
+  const id = currentId();
+  if (!id) return addMsg("Pick a companion first", "sys");
+  const r = await runCommand(`fac_companion_position ${id}`);
+  addMsg(JSON.stringify(r), "sys");
+};
+
+document.getElementById("btn-defend").onclick = async (e) => {
+  const id = currentId();
+  if (!id) return addMsg("Pick a companion first", "sys");
+  const on = e.target.textContent.includes("on");
+  const r = await runCommand(`fac_action_defend ${id} ${on ? "on" : "off"}`);
+  e.target.innerHTML = `<span class="emoji">🛡️</span>Defend ${on ? "off" : "on"}`;
+  addMsg(JSON.stringify(r), "sys");
+};
+
+document.getElementById("btn-attackstop").onclick = async () => {
+  const id = currentId();
+  if (!id) return addMsg("Pick a companion first", "sys");
+  const r = await runCommand(`fac_action_attack_stop ${id}`);
+  addMsg(JSON.stringify(r), "sys");
+};
+
+document.getElementById("chat-form").onsubmit = async (e) => {
+  e.preventDefault();
+  const input = document.getElementById("chat-input");
+  const sendBtn = document.getElementById("send-btn");
+  const message = input.value.trim();
+  if (!message) return;
+  addMsg(message, "user");
+  input.value = "";
+  sendBtn.disabled = true;
+  const thinking = addMsg("…", "bot");
+  try {
+    const res = await fetch("/api/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message, companionId: currentId(), history }),
+    });
+    const data = await res.json();
+    thinking.remove();
+    if (data.error) {
+      addMsg("Error: " + data.error, "sys");
+    } else {
+      addMsg(data.reply || "(no reply)", "bot", data.commandLog);
+      history = data.history || history;
+    }
+  } catch (err) {
+    thinking.remove();
+    addMsg("Request failed: " + err.message, "sys");
+  } finally {
+    sendBtn.disabled = false;
+  }
+  refreshCompanions();
+};
+
+refreshCompanions();
+setInterval(refreshCompanions, 15000);
+</script>
+</body>
+</html>

@@ -1,0 +1,16 @@
+{
+  "name": "ai-companion-remote-control",
+  "version": "1.0.0",
+  "description": "Phone-friendly web UI + Claude-driven chat for controlling Factorio ai-companion mod companions via RCON.",
+  "main": "server.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "rcon-client": "^4.2.5",
+    "@anthropic-ai/sdk": "^0.32.1",
+    "dotenv": "^16.4.5"
+  }
+}
