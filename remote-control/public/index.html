@@ -154,6 +154,7 @@
 <div class="actions">
   <button class="spawn" id="btn-spawn"><span class="emoji">➕</span>Spawn</button>
   <button id="btn-follow"><span class="emoji">🧭</span>Follow me</button>
+  <button id="btn-follow-all"><span class="emoji">🐾</span>Follow me (all)</button>
   <button class="stop" id="btn-stop"><span class="emoji">✋</span>Stop</button>
   <button id="btn-status"><span class="emoji">📍</span>Status</button>
   <button id="btn-defend"><span class="emoji">🛡️</span>Defend on</button>
@@ -244,6 +245,20 @@ document.getElementById("btn-follow").onclick = async () => {
   window.localStorage.setItem("playerName", player);
   const r = await runCommand(`fac_move_follow ${id} ${player}`);
   addMsg(JSON.stringify(r), "sys");
+};
+
+document.getElementById("btn-follow-all").onclick = async () => {
+  const player = prompt("Player name to follow:", window.localStorage.getItem("playerName") || "");
+  if (!player) return;
+  window.localStorage.setItem("playerName", player);
+  const res = await fetch("/api/companions");
+  const list = await res.json();
+  if (!Array.isArray(list) || !list.length) return addMsg("No companions to command", "sys");
+  addMsg(`Sending follow to ${list.length} companion(s)…`, "sys");
+  for (const c of list) {
+    const r = await runCommand(`fac_move_follow ${c.id} ${player}`);
+    addMsg(`#${c.id}: ${JSON.stringify(r)}`, "sys");
+  }
 };
 
 document.getElementById("btn-stop").onclick = async () => {
