@@ -4,17 +4,28 @@ local goals = require("commands.goals")
 
 -- <id> may be "-" for a shared goal not tied to any one companion (e.g. a
 -- strategic milestone); watch_type isn't valid without a companion.
+local VALID_WATCH_TYPES = {harvest = true, craft = true, build = true}
+
 commands.add_command("fac_goal_create", nil, function(cmd)
   u.safe_command(function()
-    local args = u.parse_args("^(%S+)%s+(%S*)%s*(.*)$", cmd.parameter)
+    local args = u.parse_args("^(%S+)%s*(.*)$", cmd.parameter)
     local id = nil
     if args[1] and args[1] ~= "-" then
       id = u.find_companion(args[1])
       if not id then u.error_response("Companion not found"); return end
     end
-    local watch_type = args[2] ~= "" and args[2] or nil
-    if not id and watch_type then u.error_response("watch_type requires a companion id"); return end
-    local description = args[3] ~= "" and args[3] or watch_type or ""
+    local rest = args[2] or ""
+    -- Only a companion-tied goal can auto-resolve, and only via one of the
+    -- three real watch types — anything else (or a shared goal) is just
+    -- description text, not a watch_type to peel off the front.
+    local watch_type, description = nil, rest
+    if id then
+      local first, remainder = rest:match("^(%S+)%s*(.*)$")
+      if first and VALID_WATCH_TYPES[first] then
+        watch_type, description = first, remainder
+      end
+    end
+    if description == "" then description = watch_type or "" end
     u.json_response(goals.create(id, description, watch_type))
   end)
 end)
