@@ -10,7 +10,7 @@ commands.add_command("fac_companion_list", nil, function(cmd)
         list[#list + 1] = {
           id = id,
           position = {x = math.floor(pos.x * 10) / 10, y = math.floor(pos.y * 10) / 10},
-          health = math.floor(c.entity.health / c.entity.prototype.max_health * 100),
+          health = math.floor(c.entity.health / c.entity.prototype.get_max_health() * 100),
           name = c.name
         }
       end
@@ -96,17 +96,17 @@ commands.add_command("fac_companion_health", nil, function(cmd)
     local id, c = u.find_companion(args[1])
     if not id then u.error_response("Companion not found"); return end
     local e = c.entity
-    local r = {id = id, self = {health = e.health, max = e.prototype.max_health, pct = math.floor(e.health / e.prototype.max_health * 100)}}
+    local r = {id = id, self = {health = e.health, max = e.prototype.get_max_health(), pct = math.floor(e.health / e.prototype.get_max_health() * 100)}}
     local tgt = args[2] ~= "" and args[2] or nil
     if tgt then
       local p = game.get_player(tgt)
       if p and p.valid and p.character then
         local ch = p.character
-        r.target = {type = "player", name = p.name, health = ch.health, max = ch.prototype.max_health, pct = math.floor(ch.health / ch.prototype.max_health * 100)}
+        r.target = {type = "player", name = p.name, health = ch.health, max = ch.prototype.get_max_health(), pct = math.floor(ch.health / ch.prototype.get_max_health() * 100)}
       else
         local tid, tc = u.find_companion(tgt)
         if tid then
-          r.target = {type = "companion", id = tid, health = tc.entity.health, max = tc.entity.prototype.max_health, pct = math.floor(tc.entity.health / tc.entity.prototype.max_health * 100)}
+          r.target = {type = "companion", id = tid, health = tc.entity.health, max = tc.entity.prototype.get_max_health(), pct = math.floor(tc.entity.health / tc.entity.prototype.get_max_health() * 100)}
         else r.target = {error = "Not found"} end
       end
     end
