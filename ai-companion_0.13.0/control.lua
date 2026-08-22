@@ -400,6 +400,7 @@ remote.add_interface("ai_companion_bridge", {
       walking = wq ~= nil,
       walk_target = wq and wq.target,
       following = wq and wq.follow_player,
+      auto_defend = not not c.auto_defend,
       harvest = queues.get_harvest_status(cid),
       craft = queues.get_craft_status(cid),
       build = queues.get_build_status(cid),
