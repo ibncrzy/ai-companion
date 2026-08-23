@@ -28,11 +28,14 @@ commands.add_command("fac_chat_say", nil, function(cmd)
     if not msg then u.error_response("Usage: fac_chat_say <id|0> <msg>"); return end
     if id_str == "0" then
       game.print("[Claude] " .. msg, u.print_color(u.COLORS.orchestrator))
+      u.log_chat("Claude", msg, u.COLORS.orchestrator)
       u.json_response({id = 0, name = "Claude", said = msg}); return
     end
     local id, c = u.find_companion(id_str)
     if not id then u.error_response("Companion not found"); return end
-    game.print("[" .. u.get_companion_display(id) .. "] " .. msg, u.print_color(c.color or u.get_companion_color(id)))
+    local color = c.color or u.get_companion_color(id)
+    game.print("[" .. u.get_companion_display(id) .. "] " .. msg, u.print_color(color))
+    u.log_chat(u.get_companion_display(id), msg, color)
     u.json_response({id = id, name = c.name, said = msg})
   end)
 end)

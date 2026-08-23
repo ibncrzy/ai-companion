@@ -68,6 +68,15 @@ function M.get_companion_display(id)
   return c and c.name and (c.name .. "(#" .. id .. ")") or ("#" .. id)
 end
 
+-- Persistent chat history for the in-game chat GUI (commands/chat_gui.lua).
+-- Separate from storage.companion_messages, which is an unread-message queue
+-- consumed by fac_chat_get and cleared on read.
+function M.log_chat(who, text, color)
+  storage.chat_log = storage.chat_log or {}
+  table.insert(storage.chat_log, {who = who, text = text, tick = game.tick, color = color})
+  if #storage.chat_log > 200 then table.remove(storage.chat_log, 1) end
+end
+
 function M.parse_args(pattern, args)
   return args and {args:match(pattern)} or {}
 end

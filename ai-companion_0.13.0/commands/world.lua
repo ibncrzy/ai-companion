@@ -30,6 +30,74 @@ commands.add_command("fac_world_nearest", nil, function(cmd)
   end)
 end)
 
+-- "Super radar": force-generates and charts unexplored terrain within radius
+-- (fac_world_scan/fac_world_nearest only ever see already-generated chunks),
+-- then reports a grouped summary of resource patches and enemy presence.
+commands.add_command("fac_world_radar", nil, function(cmd)
+  u.safe_command(function()
+    local args = u.parse_args("^(%S+)%s*(%d*)$", cmd.parameter)
+    local id, c = u.find_companion(args[1])
+    if not id then u.error_response("Companion not found"); return end
+    local radius = tonumber(args[2]) or 150
+    local pos = c.entity.position
+    local surf = c.entity.surface
+    local area = {{pos.x - radius, pos.y - radius}, {pos.x + radius, pos.y + radius}}
+
+    surf.request_to_generate_chunks(pos, math.ceil(radius / 32))
+    surf.force_generate_chunk_requests()
+    c.entity.force.chart(surf, area)
+
+    local res_summary = {}
+    for _, r in ipairs(surf.find_entities_filtered{type = "resource", area = area}) do
+      local s = res_summary[r.name]
+      if not s then
+        s = {name = r.name, count = 0, amount = 0, nearest_distance = math.huge, nearest_position = nil}
+        res_summary[r.name] = s
+      end
+      s.count = s.count + 1
+      s.amount = s.amount + r.amount
+      local d = u.distance(pos, r.position)
+      if d < s.nearest_distance then
+        s.nearest_distance = d
+        s.nearest_position = {x = math.floor(r.position.x), y = math.floor(r.position.y)}
+      end
+    end
+    local resources = {}
+    for _, s in pairs(res_summary) do
+      s.nearest_distance = math.floor(s.nearest_distance)
+      resources[#resources + 1] = s
+    end
+    table.sort(resources, function(a, b) return a.nearest_distance < b.nearest_distance end)
+
+    local enemy_summary = {}
+    for _, e in ipairs(surf.find_entities_filtered{area = area, force = "enemy", type = {"unit", "unit-spawner", "turret"}}) do
+      local s = enemy_summary[e.type]
+      if not s then
+        s = {type = e.type, count = 0, nearest_distance = math.huge, nearest_position = nil}
+        enemy_summary[e.type] = s
+      end
+      s.count = s.count + 1
+      local d = u.distance(pos, e.position)
+      if d < s.nearest_distance then
+        s.nearest_distance = d
+        s.nearest_position = {x = math.floor(e.position.x), y = math.floor(e.position.y)}
+      end
+    end
+    local enemies, enemy_count = {}, 0
+    for _, s in pairs(enemy_summary) do
+      s.nearest_distance = math.floor(s.nearest_distance)
+      enemy_count = enemy_count + s.count
+      enemies[#enemies + 1] = s
+    end
+    table.sort(enemies, function(a, b) return a.nearest_distance < b.nearest_distance end)
+    local threat = "safe"
+    if enemy_count > 5 then threat = "danger"
+    elseif enemy_count > 0 then threat = "caution" end
+
+    u.json_response({id = id, radius = radius, charted = true, resources = resources, enemies = enemies, threat_level = threat})
+  end)
+end)
+
 commands.add_command("fac_world_scan", nil, function(cmd)
   u.safe_command(function()
     local args = u.parse_args("^(%S+)%s*(%d*)%s*(%S*)$", cmd.parameter)

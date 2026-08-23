@@ -15,7 +15,7 @@ commands.add_command("fac_help", nil, function()
   local version = script.active_mods["ai-companion"] or "unknown"
   u.json_response({
     version = version,
-    commands = 59,
+    commands = 60,
     categories = {"action", "building", "chat", "companion", "context", "goal", "item", "move", "research", "resource", "world", "misc"},
     action = {"attack", "attack_start", "attack_status", "attack_stop", "defend", "flee", "patrol", "wololo"},
     building = {"can_place", "empty", "fill", "finish_ghosts", "fuel", "info", "place", "place_blueprint", "place_start", "place_status", "recipe", "remove", "rotate"},
@@ -27,7 +27,7 @@ commands.add_command("fac_help", nil, function()
     move = {"follow", "stop", "to"},
     research = {"get", "progress", "set"},
     resource = {"list", "mine", "mine_status", "mine_stop", "nearest"},
-    world = {"enemies", "nearest", "scan"},
+    world = {"enemies", "nearest", "radar", "scan"},
     misc = {"version", "help"},
     player = {"/fac <msg>", "/fac <id> <msg>", "/fac spawn", "/fac list", "/fac kill", "/fac clear", "/fac name"}
   })

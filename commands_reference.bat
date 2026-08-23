@@ -97,6 +97,7 @@ echo.
 echo --- world -----------------------------------------------------
 echo fac_world_nearest ^<id^> ^<name^>                 aliases: copper,iron,coal,stone,uranium,wood,water
 echo fac_world_scan ^<id^> [radius=10] [filter]
+echo fac_world_radar ^<id^> [radius=150]            charts unexplored terrain, grouped resources+enemies, threat_level
 echo fac_world_enemies ^<id^> [radius=30]            returns threat_level: safe^|caution^|danger
 echo.
 echo --- misc / diagnostics -----------------------------------------------------

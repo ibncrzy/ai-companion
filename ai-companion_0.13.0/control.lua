@@ -3,6 +3,7 @@ local u = require("commands.init")
 local queues = require("commands.queues")
 local goals = require("commands.goals")
 local gui = require("commands.gui")
+local chat_gui = require("commands.chat_gui")
 
 -- Get version dynamically from mod info
 local MOD_VERSION = script.active_mods["ai-companion"] or "unknown"
@@ -15,9 +16,11 @@ local function init_storage()
   storage.context_clear_requests = storage.context_clear_requests or {}
   storage.errors = storage.errors or {}
   storage.companion_markers = storage.companion_markers or {}
+  storage.chat_log = storage.chat_log or {}
   queues.init()
   goals.init()
   gui.init()
+  chat_gui.init()
 end
 
 local function cleanup_messages()
@@ -36,12 +39,14 @@ end
 script.on_init(function()
   init_storage()
   gui.ensure_buttons()
+  chat_gui.ensure_buttons()
   game.print("[AI Companion] v" .. MOD_VERSION .. " ready. /fac for help", u.print_color(u.COLORS.system))
 end)
 
 script.on_configuration_changed(function()
   init_storage()
   gui.ensure_buttons()
+  chat_gui.ensure_buttons()
   game.print("[AI Companion] Updated to v" .. MOD_VERSION, u.print_color(u.COLORS.system))
 end)
 
@@ -132,7 +137,9 @@ local function handle_fac(cmd)
       local id, comp = u.find_companion(first)
       if id then
         table.insert(storage.companion_messages, {player = player.name, message = rest, tick = game.tick, read = false, target_companion = id})
-        game.print("[" .. player.name .. " -> " .. u.get_companion_display(id) .. "] " .. rest, u.print_color(comp.color or u.get_companion_color(id)))
+        local color = comp.color or u.get_companion_color(id)
+        game.print("[" .. player.name .. " -> " .. u.get_companion_display(id) .. "] " .. rest, u.print_color(color))
+        u.log_chat(player.name .. " -> " .. u.get_companion_display(id), rest, color)
         return
       end
     end
@@ -141,6 +148,7 @@ local function handle_fac(cmd)
     else
       table.insert(storage.companion_messages, {player = player and player.name or "server", message = param, tick = game.tick, read = false})
       game.print("[" .. (player and player.name or "server") .. "] " .. param, u.print_color(u.COLORS.player))
+      u.log_chat(player and player.name or "server", param, u.COLORS.player)
     end
   end)
   if not ok then u.error_response(err, "fac"); game.print("Error: " .. tostring(err), u.print_color(u.COLORS.error)) end
@@ -217,11 +225,14 @@ remote.add_interface("ai_companion_bridge", {
   chat_say = function(msg, id)
     if not id or tostring(id) == "0" then
       game.print("[Claude] " .. tostring(msg), u.print_color(u.COLORS.orchestrator))
+      u.log_chat("Claude", tostring(msg), u.COLORS.orchestrator)
       return {id = 0, name = "Claude", said = msg}
     end
     local cid, c = u.find_companion(tostring(id))
     if not cid then return {error = "Companion not found"} end
-    game.print("[" .. u.get_companion_display(cid) .. "] " .. tostring(msg), u.print_color(c.color or u.get_companion_color(cid)))
+    local color = c.color or u.get_companion_color(cid)
+    game.print("[" .. u.get_companion_display(cid) .. "] " .. tostring(msg), u.print_color(color))
+    u.log_chat(u.get_companion_display(cid), tostring(msg), color)
     return {id = cid, name = c.name, said = msg}
   end,
 
@@ -251,6 +262,34 @@ remote.add_interface("ai_companion_bridge", {
     storage.walking_queues[cid] = nil
     c.entity.walking_state = {walking = false}
     return {id = cid, stopped = true}
+  end,
+
+  auto_defend = function(id, mode)
+    local cid, c = u.find_companion(tostring(id))
+    if not cid then return {error = "Companion not found"} end
+    c.auto_defend = not not mode
+    return {id = cid, auto_defend = c.auto_defend}
+  end,
+
+  attack_start = function(id, x, y)
+    local cid, c = u.find_companion(tostring(id))
+    if not cid then return {error = "Companion not found"} end
+    local result = queues.start_combat(cid, {x = tonumber(x), y = tonumber(y)})
+    result.id = cid
+    return result
+  end,
+
+  attack_status = function(id)
+    local cid = u.find_companion(tostring(id))
+    if not cid then return {error = "Companion not found"} end
+    return {id = cid, status = queues.get_combat_status(cid)}
+  end,
+
+  attack_stop = function(id)
+    local cid = u.find_companion(tostring(id))
+    if not cid then return {error = "Companion not found"} end
+    local result = queues.stop_combat(cid)
+    return {id = cid, stopped = result.stopped, kills = result.kills or 0}
   end,
 
   mine_ore = function(id, count, resource_name)
@@ -691,7 +730,10 @@ script.on_nth_tick(5, function(ev)
   -- Keep the goals toolbar button present and refresh any open goals GUI once a second.
   -- Not just on_init/on_configuration_changed: those don't fire on a plain restart
   -- with an unchanged mod version, so this is the reliable path on existing saves.
-  if ev.tick % 60 == 0 then gui.ensure_buttons(); gui.refresh_open() end
+  if ev.tick % 60 == 0 then gui.ensure_buttons(); gui.refresh_open(); chat_gui.ensure_buttons() end
+  -- Chat refreshes faster than goals (every 0.5s) since replies from the
+  -- external bridge should feel closer to live conversation.
+  if ev.tick % 30 == 0 then chat_gui.refresh_open() end
   -- Process all tick-based queues (realistic actions)
   queues.tick_harvest_queues()
   queues.tick_craft_queues()
