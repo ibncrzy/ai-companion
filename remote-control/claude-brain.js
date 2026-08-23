@@ -3,6 +3,22 @@ const { sendCommand } = require("./rcon");
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
+const MODEL = process.env.CLAUDE_BRAIN_MODEL || "claude-haiku-4-5-20251001";
+const MAX_HISTORY_TURNS = Number(process.env.CLAUDE_BRAIN_MAX_HISTORY_TURNS) || 12;
+
+// Keep only the last MAX_HISTORY_TURNS real user messages (and everything after
+// the oldest one kept), so a long chat session doesn't grow the request forever.
+// Tool-result messages are also role:"user" but have array content, not a string,
+// so they don't count as turn boundaries and never get split from their tool_use.
+function capHistory(history) {
+  const userTurnIndices = history
+    .map((m, i) => (m.role === "user" && typeof m.content === "string" ? i : -1))
+    .filter((i) => i !== -1);
+  if (userTurnIndices.length <= MAX_HISTORY_TURNS) return history;
+  const cutIndex = userTurnIndices[userTurnIndices.length - MAX_HISTORY_TURNS];
+  return history.slice(cutIndex);
+}
+
 const COMMAND_REFERENCE = `
 All commands take a companion id as their first argument (unless noted). Send the exact command text, e.g. "fac_move_to 28 100 200".
 
@@ -35,6 +51,7 @@ const TOOLS = [
       },
       required: ["command"],
     },
+    cache_control: { type: "ephemeral" },
   },
 ];
 
@@ -68,14 +85,14 @@ async function runTool(toolUse) {
 }
 
 async function chat({ message, companionId, history }) {
-  const messages = [...history, { role: "user", content: message }];
+  const messages = [...capHistory(history), { role: "user", content: message }];
   const commandLog = [];
 
   for (let turn = 0; turn < 6; turn++) {
     const response = await anthropic.messages.create({
-      model: "claude-sonnet-5",
+      model: MODEL,
       max_tokens: 1024,
-      system: systemPrompt(companionId),
+      system: [{ type: "text", text: systemPrompt(companionId), cache_control: { type: "ephemeral" } }],
       tools: TOOLS,
       messages,
     });
