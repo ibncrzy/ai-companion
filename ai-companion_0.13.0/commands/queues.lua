@@ -421,4 +421,27 @@ function M.stop_combat(cid)
   return {stopped = true}
 end
 
+local AUTO_DEFEND_RADIUS = 15
+
+-- For every companion with auto_defend enabled and no fight already in
+-- progress, scan a radius around it for enemies and engage the nearest one
+-- via the normal combat queue. Called periodically from control.lua's tick
+-- handler so `auto_defend` (set via the bridge/fac_action_defend) actually
+-- does something instead of just sitting in storage as a flag.
+function M.tick_auto_defend()
+  for cid, c in pairs(storage.companions) do
+    if c.auto_defend and c.entity and c.entity.valid and not storage.combat_queues[cid] then
+      local enemies = c.entity.surface.find_entities_filtered{
+        position = c.entity.position,
+        radius = AUTO_DEFEND_RADIUS,
+        force = "enemy",
+        type = {"unit", "unit-spawner"}
+      }
+      if #enemies > 0 then
+        M.start_combat(cid, enemies[1].position)
+      end
+    end
+  end
+end
+
 return M

@@ -21,6 +21,31 @@ local function companion_label(companion_id)
   return u.get_companion_display(companion_id)
 end
 
+-- Repopulates just the scroll-pane's rows, leaving the frame/titlebar/close
+-- button untouched. Previously this rebuilt the whole frame from scratch on
+-- every refresh (once a second while open), which meant the close button was
+-- being destroyed and recreated out from under the player's cursor — click
+-- it at the wrong instant and the click landed on nothing. Updating in place
+-- keeps the close button (and the frame itself) stable across refreshes.
+local function populate_scroll(scroll)
+  scroll.clear()
+  local list = goals.list()
+  if #list == 0 then
+    scroll.add{type = "label", caption = "No goals yet."}
+  else
+    for i = #list, 1, -1 do -- newest first
+      local g = list[i]
+      local row = scroll.add{type = "flow", direction = "horizontal"}
+      local status_label = row.add{type = "label", caption = "[" .. g.status .. "]"}
+      status_label.style.font_color = STATUS_COLOR[g.status] or {r = 1, g = 1, b = 1}
+      status_label.style.minimal_width = 90
+      local text = "#" .. g.id .. " (" .. companion_label(g.companion_id) .. ") " .. g.description
+      if g.note then text = text .. "  -  " .. g.note end
+      row.add{type = "label", caption = text}
+    end
+  end
+end
+
 local function build_frame(player)
   if player.gui.screen.ai_companion_goals then player.gui.screen.ai_companion_goals.destroy() end
 
@@ -38,22 +63,7 @@ local function build_frame(player)
   local scroll = frame.add{type = "scroll-pane", name = "scroll", direction = "vertical"}
   scroll.style.maximal_height = 400
   scroll.style.minimal_width = 420
-
-  local list = goals.list()
-  if #list == 0 then
-    scroll.add{type = "label", caption = "No goals yet."}
-  else
-    for i = #list, 1, -1 do -- newest first
-      local g = list[i]
-      local row = scroll.add{type = "flow", direction = "horizontal"}
-      local status_label = row.add{type = "label", caption = "[" .. g.status .. "]"}
-      status_label.style.font_color = STATUS_COLOR[g.status] or {r = 1, g = 1, b = 1}
-      status_label.style.minimal_width = 90
-      local text = "#" .. g.id .. " (" .. companion_label(g.companion_id) .. ") " .. g.description
-      if g.note then text = text .. "  -  " .. g.note end
-      row.add{type = "label", caption = text}
-    end
-  end
+  populate_scroll(scroll)
   return frame
 end
 
@@ -62,9 +72,14 @@ function M.toggle(player)
   if player.gui.screen.ai_companion_goals then
     player.gui.screen.ai_companion_goals.destroy()
     storage.goal_gui_open[player.index] = nil
+    if player.opened_gui_type == defines.gui_type.custom then player.opened = nil end
   else
-    build_frame(player)
+    local frame = build_frame(player)
     storage.goal_gui_open[player.index] = true
+    -- Registers this as the player's "opened" GUI so the vanilla close-all
+    -- shortcut (Escape / E by default) dismisses it too, not just the X
+    -- button — matches how every other window in the game behaves.
+    player.opened = frame
   end
 end
 
@@ -76,7 +91,17 @@ function M.refresh_open()
   for player_index in pairs(storage.goal_gui_open) do
     local player = game.players[player_index]
     if player and player.valid then
-      build_frame(player)
+      local frame = player.gui.screen.ai_companion_goals
+      if frame and frame.valid and frame.scroll and frame.scroll.valid then
+        populate_scroll(frame.scroll)
+      else
+        -- frame got closed/destroyed some other way (e.g. player pressed
+        -- the in-game "close all" hotkey) without going through our close
+        -- button handler, so the open-flag never got cleared. Rebuild it
+        -- once rather than silently doing nothing every second.
+        local rebuilt = build_frame(player)
+        player.opened = rebuilt
+      end
     else
       storage.goal_gui_open[player_index] = nil
     end
@@ -172,7 +197,19 @@ script.on_event(defines.events.on_gui_click, function(event)
   elseif element.name == "ai_companion_goals_close" then
     if player.gui.screen.ai_companion_goals then player.gui.screen.ai_companion_goals.destroy() end
     storage.goal_gui_open[event.player_index] = nil
+    if player.opened_gui_type == defines.gui_type.custom then player.opened = nil end
   end
+end)
+
+-- Fires for Escape / E (or any other way the game closes a "player.opened"
+-- window) so the goals window responds to the same dismiss shortcut as
+-- every other in-game panel, not just its own X button.
+script.on_event(defines.events.on_gui_closed, function(event)
+  if event.gui_type ~= defines.gui_type.custom then return end
+  local element = event.element
+  if not element or not element.valid or element.name ~= "ai_companion_goals" then return end
+  element.destroy()
+  storage.goal_gui_open[event.player_index] = nil
 end)
 
 return M

@@ -739,6 +739,8 @@ script.on_nth_tick(5, function(ev)
   queues.tick_craft_queues()
   queues.tick_build_queues()
   queues.tick_combat_queues()
+  -- Scan for nearby enemies and auto-engage every 0.5s for companions with auto_defend on
+  if ev.tick % 30 == 0 then queues.tick_auto_defend() end
   -- Process walking queues
   if not storage.walking_queues then return end
   for cid, q in pairs(storage.walking_queues) do
