@@ -1,5 +1,24 @@
 # Known issues / gotchas (learned the hard way — check here before re-debugging)
 
+## A code edit sitting un-loaded for a while, even after committing it
+CLAUDE.md's "Install/deploy the mod" section already covers *why* Factorio loads
+`mods\ai-companion_0.13.0.zip` instead of this working copy directly — this entry is the concrete
+incident that proves it still bites people who know that in the abstract. A `control.lua` fix
+(the `fuel_entity`/burner-inserter one below) was written, reviewed, and committed in one Claude
+Code session, then verified live as fixed by a second, concurrent session — except the second
+session initially got the *same* "No burner nearby" failure as before the fix, because the running
+game was still loading the stale zip. Diagnosing that took real effort before landing on "check
+whether the zip actually got regenerated." Two things made it worse than the usual case:
+- The zip is **locked while Factorio is running** — you can't just re-run `Compress-Archive`, you
+  have to fully close the game first (a save reload is not enough; the process has to exit).
+- A stale zip fails *silently* — no error, no log line, it just keeps running the old behavior
+  forever, indistinguishable from the fix genuinely not working.
+
+Use `deploy.ps1` (repo root) instead of re-deriving the `Compress-Archive` command each time —
+run it after any `control.lua`/`commands/*.lua` edit, with Factorio fully closed, then start
+Factorio fresh. If a fix "isn't working" after a live verify, re-deploying and fully restarting
+should be the first thing you check, before re-reading the diff for a logic bug that isn't there.
+
 ## "Total automation" means a real belt line, not repeated hand-feeding
 Building a production line (e.g. automation-science-pack -> lab) via `transfer_item`/`craft_start`
 calls is a **one-time bootstrap** to gather materials for construction, not the automation itself.
