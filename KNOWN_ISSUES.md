@@ -60,3 +60,25 @@ Drills, furnaces, and burner-inserters placed via `place_blueprint` start with e
 inventories. Fueling them (generously — e.g. 50-100 coal each) is a required, one-time finishing
 step, not ongoing hand-feeding, but it's easy to forget and assume the line is "done" when
 everything is actually just sitting idle on `no_fuel`.
+
+## Inserter pickup/drop direction is inverted from its label; `transport-belt` is NOT
+Placing an `inserter` via `create_entity` with a given `defines.direction` does **not** make it
+pick up from "behind" and drop "in front" the way vanilla Factorio intuition suggests — the two
+axes are inverted from each other and from the label. Verified empirically with throwaway
+`create_entity` calls and reading back `.pickup_position`/`.drop_position`:
+- `direction = north` (0): pickup lands on the **smaller**-y tile, drop on the **larger**-y tile.
+  Example: inserter at (-48.5,10.5) facing `north` → pickup=(-48.5,9.5), drop=(-48.5,11.7).
+- `direction = south` (8): the reverse — pickup=**larger**-y, drop=**smaller**-y.
+- `direction = east` (4): pickup=**larger**-x, drop=**smaller**-x (not the mirror of north/south —
+  don't assume the x-axis behaves symmetrically to the y-axis; test both independently).
+- `direction = west` (12) follows by elimination: pickup=smaller-x, drop=larger-x.
+
+**`transport-belt` uses the label normally** — `direction = east` moves items toward larger x, no
+inversion. This is what makes the bug so easy to miss: a belt-relay link built by reusing the same
+`direction` value that correctly fed an inserter will place items into the belt fine, but they sit
+dead in the first belt tile forever (visible as lane 2 having items, lane 1 empty, and the tile
+after it always empty — check with `belt.get_transport_line(1)`/`(2)` counts) because the belt is
+pushing them backward relative to what the inserter chain intends.
+**Before wiring any multi-stage inserter+belt line, verify direction semantics empirically first**
+(a throwaway inserter placement + position readback takes one `run_lua` call) rather than trusting
+`defines.direction` names to mean what they mean in vanilla.
