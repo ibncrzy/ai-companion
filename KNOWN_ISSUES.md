@@ -9,16 +9,16 @@ running, that's a sign the belt/inserter chain isn't actually built yet — fini
 The lab in particular has no buffer worth relying on by hand — "no manual feeding" was flagged
 twice in one session because a chest/inserter hand-off was mistaken for done automation.
 
-## `ai_companion_bridge.fuel_entity` can't fuel burner-inserters
-Its entity filter is `type = {"furnace", "boiler", "burner-inserter", "car", "locomotive",
-"mining-drill"}` (control.lua), but a burner-inserter's real Factorio `.type` is `"inserter"`,
-not `"burner-inserter"` — so the filter never matches and every call returns `"No burner nearby"`.
-Workaround: fuel burner-inserters directly via `run_lua`, locating the companion's character
-entity (`find_entities_filtered{type="character", position=..., radius=2}` near the companion's
-`companion_status` position) and inserting into `entity.get_fuel_inventory()` by hand.
-Also watch for `fuel_entity`'s radius-3 search matching the *wrong* nearby burner when a drill,
-furnace, and inserter are clustered within 3 tiles of each other — it silently fuels whichever
-one `find_entities_filtered` returns first, not necessarily the one you targeted.
+## `ai_companion_bridge.fuel_entity` couldn't fuel burner-inserters (fixed)
+Its entity filter used to include `"burner-inserter"` as a *type*, but a burner-inserter's real
+Factorio `.type` is `"inserter"`, not `"burner-inserter"` — the filter never matched and every
+call returned `"No burner nearby"`. Fixed in control.lua by filtering on `type = "inserter"` and
+then picking whichever candidate in range actually has a fuel inventory (`get_fuel_inventory() ~=
+nil`), rather than assuming `es[1]` is fuelable — this also incidentally fixes electric
+furnaces/inserters in range being picked ahead of a valid burner one.
+Still watch for `fuel_entity`'s radius-3 search matching the *wrong* nearby burner when multiple
+fuelable entities are clustered within 3 tiles of each other — it fuels whichever one comes first
+in `find_entities_filtered`'s results, not necessarily the one you targeted.
 
 ## Placed entities can silently snap position, breaking your geometry math
 `burner-mining-drill` (and possibly other entities) in this modpack do **not** always land where

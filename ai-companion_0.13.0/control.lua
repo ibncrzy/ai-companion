@@ -547,10 +547,17 @@ remote.add_interface("ai_companion_bridge", {
     local have = inv.get_item_count(fuel)
     if have == 0 then return {error = "No " .. fuel} end
     local pos = (tonumber(x) and tonumber(y)) and {x = tonumber(x), y = tonumber(y)} or c.entity.position
-    local es = c.entity.surface.find_entities_filtered{position = pos, radius = 3, type = {"furnace", "boiler", "burner-inserter", "car", "locomotive", "mining-drill"}}
-    if #es == 0 then return {error = "No burner nearby"} end
-    local fi = es[1].get_fuel_inventory()
-    if not fi then return {error = "No fuel slot"} end
+    -- "burner-inserter" is an entity *name*, not a *type* (its type is "inserter"), so it never
+    -- matched here; filter by type="inserter" instead and pick whichever candidate actually has
+    -- a fuel inventory (this also fixes electric furnaces/inserters in range being picked over a
+    -- valid burner one, since only burner variants return a fuel inventory).
+    local es = c.entity.surface.find_entities_filtered{position = pos, radius = 3, type = {"furnace", "boiler", "inserter", "car", "locomotive", "mining-drill"}}
+    local target, fi
+    for _, e in ipairs(es) do
+      local candidate_fi = e.get_fuel_inventory()
+      if candidate_fi then target, fi = e, candidate_fi; break end
+    end
+    if not target then return {error = "No burner nearby"} end
     local ins = fi.insert{name = fuel, count = math.min(tonumber(amount) or 5, have)}
     if ins > 0 then inv.remove{name = fuel, count = ins}; return {id = cid, inserted = ins, fuel = fuel} end
     return {error = "Full"}
