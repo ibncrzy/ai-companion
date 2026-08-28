@@ -39,6 +39,30 @@ Still watch for `fuel_entity`'s radius-3 search matching the *wrong* nearby burn
 fuelable entities are clustered within 3 tiles of each other — it fuels whichever one comes first
 in `find_entities_filtered`'s results, not necessarily the one you targeted.
 
+## `build_start`'s direction argument silently falls back to north for bad input
+`ai_companion_bridge.build_start(id, entity_name, x, y, direction)` (and the underlying
+`fac_building_place_start`) expect `direction` to be a small index — `0`=north, `1`=east,
+`2`=south, `3`=west (see `u.dir_map` in `commands/init.lua`) — **not** a raw Factorio
+`defines.direction` value (0/4/8/12). Passing `defines.direction.east` (4) looks up
+`u.dir_map[4]`, which doesn't exist, and the code falls back to
+`defines.direction.north` with no error — the entity gets built facing the wrong way
+and `build_start` still reports `{started = true}`. Bit hard while laying out
+straight-rail: two rails placed with a "different" direction each silently landed with
+the *same* orientation, overwriting each other's queue slot before either resolved,
+so it initially looked like only one placement had gone through at all. Always pass
+`0-3`, and if the placement's actual orientation matters, re-query the entity's
+`.direction` after it resolves rather than trusting the call succeeded correctly.
+
+## `build_start` is one entity in flight per companion, ~1/sec — no bulk placement
+Each companion has a single `storage.build_queues[cid]` slot; calling `build_start`
+again for the same companion before the pending one resolves (`BUILD_TICKS = 60`,
+`commands/queues.lua`) just overwrites the queued build instead of stacking it — the
+first request is lost with no error. There's no way to place many entities from one
+companion faster than ~1/sec; the only lever is running builds on multiple companions
+in parallel (each has its own queue slot). Relevant for anything at rail/belt scale —
+budget real wall-clock time (or spread the work across companions) rather than
+assuming a burst of `build_start` calls will all land.
+
 ## Placed entities can silently snap position, breaking your geometry math
 `burner-mining-drill` (and possibly other entities) in this modpack do **not** always land where
 you tell `place_blueprint`/`create_entity` to put them — a drill requested at (6.5, 121.5) actually
