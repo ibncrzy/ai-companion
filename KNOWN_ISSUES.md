@@ -63,6 +63,19 @@ in parallel (each has its own queue slot). Relevant for anything at rail/belt sc
 budget real wall-clock time (or spread the work across companions) rather than
 assuming a burst of `build_start` calls will all land.
 
+## Decider/arithmetic combinators have separate wire connectors for input vs. output
+`entity.get_wire_connector(defines.wire_connector_id.circuit_red, true)` (id `1`) reaches a
+combinator's **input** side — the same id used for the raw signal you're reading (e.g. summed
+`iron-ore` from wired chests). To read what the combinator actually *outputs*, connect to
+`defines.wire_connector_id.combinator_output_red`/`_green` (ids `3`/`4`) instead. Wiring a relay
+pole (or anything downstream) to the input id by mistake connects with no error and carries no
+useful signal — it just silently returns 0/empty rather than the computed output, easy to mistake
+for "the relay is too far away" or "the combinator condition is wrong" when the real bug is which
+connector id you picked. Confirmed via `defines.wire_connector_id`: `circuit_red=1`,
+`circuit_green=2` (= `combinator_input_red`/`_green`), `combinator_output_red=3`,
+`combinator_output_green=4`. Simple entities (chests, lamps, poles) only have one pair of circuit
+connectors, so this distinction only bites combinators (decider/arithmetic/constant).
+
 ## Placed entities can silently snap position, breaking your geometry math
 `burner-mining-drill` (and possibly other entities) in this modpack do **not** always land where
 you tell `place_blueprint`/`create_entity` to put them — a drill requested at (6.5, 121.5) actually
